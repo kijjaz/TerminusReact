@@ -1,0 +1,79 @@
+{
+  "Kijjaz": {
+    "name": "Kijjaz",
+    "x": 177,
+    "y": 201,
+    "level": "fungal_caverns",
+    "char": "@",
+    "inventory": [
+      {
+        "char": ".",
+        "name": "Rubble"
+      },
+      {
+        "char": ".",
+        "name": "Rubble"
+      },
+      {
+        "char": ".",
+        "name": "Rubble"
+      },
+      {
+        "char": ".",
+        "name": "Rubble"
+      }
+    ],
+    "friends": [],
+    "bankGold": 0
+  },
+  "TerminusBot": {
+    "name": "TerminusBot",
+    "x": 200,
+    "y": 200,
+    "level": "town",
+    "char": "@",
+    "inventory": [],
+    "friends": [],
+    "bankGold": 0
+  },
+  "CitadelArch": {
+    "name": "CitadelArch",
+    "x": 200,
+    "y": 200,
+    "level": "town",
+    "char": "@",
+    "inventory": [],
+    "friends": [],
+    "bankGold": 0
+  },
+  "Explorer": {
+    "name": "Explorer",
+    "x": 200,
+    "y": 200,
+    "level": "town",
+    "char": "@",
+    "inventory": [],
+    "friends": [],
+    "bankGold": 0
+  },
+  "testuser": {
+    "name": "testuser",
+    "x": 200,
+    "y": 200,
+    "level": "town",
+    "char": "@",
+    "inventory": [],
+    "friends": [],
+    "bankGold": 0
+  },
+  "tester": {
+    "name": "tester",
+    "x": 200,
+    "y": 200,
+    "level": "town",
+    "char": "@",
+    "inventory": [],
+    "friends": [],
+    "bankGold": 0
+  }
+}

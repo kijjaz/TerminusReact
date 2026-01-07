@@ -1,0 +1,142 @@
+:root {
+    --bg-color: #050505;
+    /* Deep, almost black void */
+    --ui-color: #8b0000;
+    /* Blood red UI */
+    --text-color: #cccccc;
+    /* Rotten grey text */
+    --accent-color: #2b2b2b;
+    /* Dark metallic */
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: 'VT323', monospace;
+    overflow: hidden;
+    /* Prevent scrolling */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-size: 24px;
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: grayscale;
+    font-smooth: never;
+    text-rendering: optimizeSpeed;
+    /* Prefer speed/aliasing over geometric precision */
+}
+
+#game-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+canvas {
+    image-rendering: pixelated;
+    /* Crucial for pixel art crispness */
+    background-color: #111;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+    display: block;
+}
+
+#ui-overlay {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    display: flex;
+    justify-content: space-between;
+    pointer-events: none;
+    /* Let clicks pass through to canvas */
+    text-shadow: 2px 2px 0px #000;
+}
+
+.screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+}
+
+.screen h1 {
+    font-size: 8rem;
+    color: var(--ui-color);
+    text-shadow: 4px 4px 0px #000;
+    margin-bottom: 2rem;
+    animation: pulse 3s infinite;
+}
+
+.screen p {
+    font-size: 2rem;
+    color: #eee;
+    animation: blink 1s infinite;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Animations */
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        text-shadow: 4px 4px 0px #000;
+    }
+
+    50% {
+        transform: scale(1.05);
+        text-shadow: 6px 6px 4px #8b0000;
+    }
+
+    100% {
+        transform: scale(1);
+        text-shadow: 4px 4px 0px #000;
+    }
+}
+
+@keyframes blink {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0;
+    }
+}
+
+/* Scanline effect overlay */
+body::after {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: linear-gradient(to bottom,
+            rgba(18, 16, 16, 0) 50%,
+            rgba(0, 0, 0, 0.25) 50%);
+    background-size: 100% 4px;
+    z-index: 999;
+    pointer-events: none;
+}

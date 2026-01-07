@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TERMINUS | ANSI MULTIPLAYER</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+
+        <div id="login-overlay">
+            <div id="login-box">
+                <h1>TERMINUS</h1>
+                <p>Social Roguelike Chatroom</p>
+                <input type="text" id="username-input" placeholder="Desired Username" maxlength="12">
+                <button id="login-button">ENTER WORLD</button>
+            </div>
+        </div>
+
+        <div id="ui-overlay" style="display: none;">
+            <div id="inventory-box">
+                <div id="inv-title">INVENTORY</div>
+                <div id="inv-list"></div>
+            </div>
+            <div id="online-users">
+                <div id="online-title">ACTIVE USERS</div>
+                <div id="online-list"></div>
+            </div>
+            <div id="minimap-box">
+                <div id="minimap-title">SURVEY MAP</div>
+                <canvas id="minimapCanvas"></canvas>
+            </div>
+            <div id="chat-box">
+                <div id="chat-messages"></div>
+                <input type="text" id="chat-input" placeholder="Type /help for commands..." autocomplete="off">
+            </div>
+
+            <div id="status-bar">
+                <span id="player-coords">X: 0 Y: 0</span> |
+                <span id="room-name">THE TOWN</span>
+            </div>
+
+            <!-- Virtual D-Pad for Mobile -->
+            <div id="dpad-container">
+                <div class="dpad-row">
+                    <button id="btn-up" class="dpad-btn">▲</button>
+                </div>
+                <div class="dpad-row">
+                    <button id="btn-left" class="dpad-btn">◀</button>
+                    <button id="btn-down" class="dpad-btn">▼</button>
+                    <button id="btn-right" class="dpad-btn">▶</button>
+                </div>
+                <div class="dpad-row actions">
+                    <button id="btn-get" class="dpad-btn action">G</button>
+                    <button id="btn-look" class="dpad-btn action">L</button>
+                    <button id="btn-help" class="dpad-btn action">H</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dependencies -->
+    <script src="socket.io.min.js"></script>
+    <script type="module" src="src/main.js"></script>
+</body>
+
+</html>

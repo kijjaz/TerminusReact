@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minerio: The Underworld</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Import a pixel font for that retro horror feel -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="ui-overlay">
+            <div id="debug-info">FPS: <span id="fps">0</span></div>
+            <div id="health-bar">HP: <span id="hp">100</span>%</div>
+        </div>
+        <div id="start-screen" class="screen">
+            <h1>MINERIO</h1>
+            <p>Press SPACE to Descend</p>
+        </div>
+
+        <div id="chat-container">
+            <div id="chat-history"></div>
+            <input type="text" id="chat-input" placeholder="Type message or /invite..." autocomplete="off">
+        </div>
+
+        <div id="social-panel">
+            <h3>Underworld Denizens</h3>
+            <div id="player-list"></div>
+        </div>
+    </div>
+    <div id="scanlines"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="module" src="src/main.js"></script>
+</body>
+
+</html>

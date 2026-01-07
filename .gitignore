@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# OS
+.DS_Store
+
+# Builds
+TerminusReact/dist/
+# We KEEP Terminus/public because we want to deploy the built assets easily
+# Terminus/public/
+
+# Environment
+.env
+
+# Zip bundles
+*.zip
+
+# Logs
+chat_logs.txt
+*.log
