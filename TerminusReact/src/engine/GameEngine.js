@@ -13,6 +13,7 @@ export class GameEngine {
         this.socket = null;
         this.rafId = null;
         this.lastTime = 0;
+        this.remotePlayers = new Map(); // Store other players
 
         // Reactive State for UI (Subscribers)
         this.state = {
@@ -64,6 +65,13 @@ export class GameEngine {
             if (data.id) {
                 this.player.id = data.id;
             }
+            if (data.players) {
+                data.players.forEach(p => {
+                    if (p.id !== this.player.id) {
+                        this.remotePlayers.set(p.id, p);
+                    }
+                });
+            }
         });
 
         this.socket.on('chat_message', (msg) => {
@@ -77,7 +85,12 @@ export class GameEngine {
         });
 
         this.socket.on('player_update', (p) => {
-            // Handle other players moving
+            if (p.id === this.player.id) return; // Ignore self
+            this.remotePlayers.set(p.id, p);
+        });
+
+        this.socket.on('player_disconnect', (id) => {
+            this.remotePlayers.delete(id);
         });
     }
 
@@ -98,7 +111,7 @@ export class GameEngine {
         // 2. Determine initial render
         if (this.renderer.ctx) {
             this.renderer.resize();
-            this.renderer.renderWorld(this.world, this.player);
+            this.renderer.renderWorld(this.world, this.player, this.remotePlayers);
         }
 
         // 3. Emit Login
@@ -133,11 +146,11 @@ export class GameEngine {
         const dt = (now - this.lastTime) / 1000;
         this.lastTime = now;
 
-        // 1. Update Physics
-        const moved = this.player.update();
+        // 1. Update Physics (pass remotePlayers for collision)
+        const moved = this.player.update(this.remotePlayers);
 
-        // 2. Render
-        this.renderer.renderWorld(this.world, this.player, new Map(), now / 1000, { type: 'none' });
+        // 2. Render (pass remotePlayers for drawing)
+        this.renderer.renderWorld(this.world, this.player, this.remotePlayers, now / 1000, { type: 'none' });
 
         // 3. Network Sync
         if (moved && this.socket) {

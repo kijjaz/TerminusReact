@@ -184,10 +184,33 @@ export class Renderer {
             }
         }
 
-        // 3. Remote Players
+        // 3. Remote Players & Indicators
         for (const [id, p] of remotePlayers) {
-            if (p.level === world.currentLevel && (p.z || 0) === z) {
-                this.drawChar(p.x - camX, p.y - camY, p.char, 'B');
+            if (p.level !== world.currentLevel) continue;
+
+            const px = p.x - camX;
+            const py = p.y - camY;
+
+            const inView = px >= 0 && px < this.cols && py >= 0 && py < this.rows;
+
+            if (inView) {
+                // Draw Player
+                if ((p.z || 0) === z) {
+                    this.drawChar(px, py, p.char, 'B'); // Blue for remote players
+                }
+            } else {
+                // Draw Indicator (Radar)
+                // Clamp to screen edges with 1 cell margin
+                const ix = Math.max(1, Math.min(this.cols - 2, px));
+                const iy = Math.max(1, Math.min(this.rows - 2, py));
+
+                // Only show if reasonably close (e.g. < 100 tiles) to avoid noise? 
+                // User asked for "nearby", let's say 50 tiles radius.
+                const dx = p.x - player.x;
+                const dy = p.y - player.y;
+                if (dx * dx + dy * dy < 2500) { // 50^2
+                    this.drawChar(ix, iy, '*', 'T'); // Cyan asterisk
+                }
             }
         }
 

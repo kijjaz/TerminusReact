@@ -17,9 +17,9 @@ export class Player {
         // Physics
         this.runTime = 0;
         this.physics = {
-            accel: 0.4,
-            maxVel: 0.8,
-            friction: 0.75
+            accel: 0.10,  // Slower acceleration
+            maxVel: 0.45, // Slower max speed
+            friction: 0.82 // Snappier stop
         };
 
         // UI State (synced to React later, but kept here for logic)
@@ -70,13 +70,13 @@ export class Player {
         }
     }
 
-    update() {
-        this.updatePhysics();
+    update(remotePlayers) {
+        this.updatePhysics(remotePlayers);
         this.updateCamera();
         return (Math.abs(this.vx) > 0.01 || Math.abs(this.vy) > 0.01);
     }
 
-    updatePhysics() {
+    updatePhysics(remotePlayers) {
         let ax = 0;
         let ay = 0;
 
@@ -131,13 +131,13 @@ export class Player {
         }
 
         if (moveX !== 0 || moveY !== 0) {
-            this.move(moveX, moveY);
+            this.move(moveX, moveY, remotePlayers);
             return true;
         }
         return false;
     }
 
-    move(dx, dy) {
+    move(dx, dy, remotePlayers) {
         const nx = this.x + dx;
         const ny = this.y + dy;
         const tile = this.world.getTile(nx, ny);
@@ -166,13 +166,23 @@ export class Player {
             TILE_TYPES.TORCH
         ];
 
+        // 1. Check Walkable
         const isNumeric = !isNaN(tile.char) && tile.char !== ' ';
+        if (!walkable.includes(tile.char) && !isNumeric) return;
 
-        if (walkable.includes(tile.char) || isNumeric) {
-            this.x = nx;
-            this.y = ny;
-            this.updateFOV();
+        // 2. Check Player Collision
+        if (remotePlayers) {
+            for (const p of remotePlayers.values()) {
+                if (Math.floor(p.x) === nx && Math.floor(p.y) === ny) {
+                    return; // Blocked by player
+                }
+            }
         }
+
+        // Apply Move
+        this.x = nx;
+        this.y = ny;
+        this.updateFOV();
     }
 
     updateFOV() {
