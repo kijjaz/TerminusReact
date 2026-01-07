@@ -59,26 +59,59 @@ export class Player {
         if (Math.sqrt(dx * dx + dy * dy) < 5) {
             const tile = this.world.getTile(worldX, worldY);
             if (tile && tile.char !== ' ') {
-                // Network Request
-                if (engine) engine.sendMineRequest(worldX, worldY, this.level);
+                // Tier Check
+                const tool = this.equipment.rightHand;
+                const power = tool && tool.stats ? tool.stats.miningPower : 1; // Hand = 1
 
-                // Play Sound
+                let reqPower = 0;
+                let hardness = 'soft';
+
+                if (tile.char === TILE_TYPES.STONE || tile.char === TILE_TYPES.MOUNTAIN) {
+                    reqPower = 2; // Needs Stone Pickaxe
+                    hardness = 'stone';
+                }
+                if (tile.char === TILE_TYPES.BEDROCK) {
+                    reqPower = 4; // Needs Mese Pickaxe
+                    hardness = 'hard';
+                }
+
+                // Allow mining Wood/Dirt with Hand (Power 1)
+
+                if (power < reqPower) {
+                    if (sound) sound.play('CLINK', 0.8, 1.5); // High pitch clink
+                    if (engine) engine.updateState({
+                        chatMessages: [...engine.state.chatMessages.slice(-49),
+                        { user: 'System', text: `Too hard! Needs Tier ${reqPower} Tool.`, channel: 'system' }]
+                    });
+                    return;
+                }
+
+                // Success - Mine it
+                if (engine) engine.sendMineRequest(worldX, worldY, this.level);
                 if (sound) sound.play('DIG', 0.5, 0.9 + Math.random() * 0.2);
 
-                // Drop Logic (Client Authority for responsiveness)
-                // 1. Rubble (Always?)
-                if (Math.random() < 0.25) {
-                    this.inventory.push({ char: '.', name: 'Rubble', type: 'resource' });
+                // Drop Logic
+                // 1. Rubble / Resources
+                if (tile.char === TILE_TYPES.DIRT || tile.char === TILE_TYPES.GRASS) {
+                    if (Math.random() < 0.4) this.inventory.push({ char: '.', name: 'Rubble', type: 'resource' });
                 }
 
-                // 2. Ores
-                const roll = Math.random();
-                if (tile.char === TILE_TYPES.STONE || tile.char === TILE_TYPES.MOUNTAIN) {
-                    if (roll < 0.15) this.inventory.push({ char: 'I', name: 'Iron Ore', color: 's', type: 'resource' });
-                    if (roll < 0.01) this.inventory.push({ char: 'M', name: 'Mese Crystal', color: 'y', type: 'rare' });
+                if (hardness === 'stone') {
+                    // Stone Drops
+                    this.inventory.push({ char: '.', name: 'Rubble', type: 'resource' }); // Always rubble
+                    const roll = Math.random();
+                    if (roll < 0.20) this.inventory.push({ char: 'I', name: 'Iron Ore', color: 's', type: 'resource' });
+                    if (roll < 0.02) this.inventory.push({ char: 'M', name: 'Mese Crystal', color: 'y', type: 'rare' });
                 }
-                if (tile.char === TILE_TYPES.BEDROCK) { // Deep
-                    if (roll < 0.05) this.inventory.push({ char: 'D', name: 'Diamantine', color: 'T', type: 'legendary' });
+
+                if (hardness === 'hard') { // Bedrock
+                    const roll = Math.random();
+                    if (roll < 0.10) this.inventory.push({ char: 'D', name: 'Diamantine', color: 'T', type: 'legendary' });
+                }
+
+                // Wood
+                if (tile.char === TILE_TYPES.WOOD || tile.char === TILE_TYPES.TREE) {
+                    this.inventory.push({ char: '=', name: 'Wood', color: 'u', type: 'resource' });
                 }
             }
         }

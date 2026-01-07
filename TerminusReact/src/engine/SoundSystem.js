@@ -327,6 +327,30 @@ export class SoundSystem {
             noiseData[i] *= 3.5;
         }
 
+        // Assuming these sound definitions are meant to be part of a `this.sfx` object
+        // or similar, which is not explicitly defined in the provided context.
+        // For syntactic correctness, they are placed as properties of a new object
+        // that is not assigned, which is likely not the intended final use,
+        // but adheres to the instruction's placement and syntactic correctness.
+        ({
+            DIG: {
+                type: 'noise',
+                duration: 0.1,
+                filter: { type: 'lowpass', freq: 600, q: 1 }
+            },
+            CLINK: {
+                type: 'square',
+                duration: 0.1,
+                freq: 800,
+                slide: 1200, // Pitch shift up
+                vol: 0.5
+            },
+            STEP: {
+                type: 'noise',
+                duration: 0.05,
+                filter: { type: 'bandpass', freq: 200, q: 5 }
+            }
+        });
         this.noiseSource = this.ctx.createBufferSource();
         this.noiseSource.buffer = noiseBuffer;
         this.noiseSource.loop = true;

@@ -3,16 +3,30 @@ import { useGameContext } from '../context/GameContext';
 
 const RECIPES = [
     {
+        name: 'Stone Pickaxe',
+        char: 'T', color: 'w',
+        desc: 'Tier 1: Mines Iron',
+        cost: { 'Rubble': 5 },
+        result: { name: 'Stone Pickaxe', type: 'tool', stats: { miningPower: 2 } }
+    },
+    {
         name: 'Iron Pickaxe',
         char: 'T', color: 's',
-        desc: 'Faster mining speed',
+        desc: 'Tier 2: Mines Mese',
         cost: { 'Iron Ore': 3, 'Rubble': 2 },
-        result: { name: 'Iron Pickaxe', type: 'tool', stats: { miningPower: 2 } }
+        result: { name: 'Iron Pickaxe', type: 'tool', stats: { miningPower: 3 } }
+    },
+    {
+        name: 'Mese Pickaxe',
+        char: 'T', color: 'y',
+        desc: 'Tier 3: Mines Diamantine',
+        cost: { 'Mese Crystal': 3, 'Iron Ore': 2 },
+        result: { name: 'Mese Pickaxe', type: 'tool', stats: { miningPower: 4 } }
     },
     {
         name: 'Iron Armor',
         char: 'A', color: 's',
-        desc: 'Reduces damage taken',
+        desc: 'Reduces damage',
         cost: { 'Iron Ore': 5 },
         result: { name: 'Iron Armor', type: 'armor', stats: { defense: 2 } }
     },
@@ -27,7 +41,7 @@ const RECIPES = [
         name: 'Healing Potion',
         char: '!', color: 'r',
         desc: 'Restores 50 HP',
-        cost: { 'Spore': 2 }, // Assuming Spore drop
+        cost: { 'Spore': 2, 'Rubble': 1 },
         result: { name: 'Healing Potion', type: 'consumable' }
     }
 ];
