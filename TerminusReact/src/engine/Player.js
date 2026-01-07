@@ -44,7 +44,7 @@ export class Player {
         this.keys.delete(key.toLowerCase());
     }
 
-    handleMouseDown(mx, my, renderer, sound) {
+    handleMouseDown(mx, my, renderer, sound, engine) {
         if (!renderer || !renderer.charWidth || !renderer.charHeight) return;
 
         const gridX = Math.floor(mx / renderer.charWidth);
@@ -59,12 +59,26 @@ export class Player {
         if (Math.sqrt(dx * dx + dy * dy) < 5) {
             const tile = this.world.getTile(worldX, worldY);
             if (tile && tile.char !== ' ') {
-                this.world.setTile(worldX, worldY, ' ', 'w');
-                if (sound) {
-                    sound.play('DIG', 0.5, 0.9 + Math.random() * 0.2);
-                }
+                // Network Request
+                if (engine) engine.sendMineRequest(worldX, worldY, this.level);
+
+                // Play Sound
+                if (sound) sound.play('DIG', 0.5, 0.9 + Math.random() * 0.2);
+
+                // Drop Logic (Client Authority for responsiveness)
+                // 1. Rubble (Always?)
                 if (Math.random() < 0.25) {
-                    this.inventory.push({ char: '.', name: 'Rubble' });
+                    this.inventory.push({ char: '.', name: 'Rubble', type: 'resource' });
+                }
+
+                // 2. Ores
+                const roll = Math.random();
+                if (tile.char === TILE_TYPES.STONE || tile.char === TILE_TYPES.MOUNTAIN) {
+                    if (roll < 0.15) this.inventory.push({ char: 'I', name: 'Iron Ore', color: 's', type: 'resource' });
+                    if (roll < 0.01) this.inventory.push({ char: 'M', name: 'Mese Crystal', color: 'y', type: 'rare' });
+                }
+                if (tile.char === TILE_TYPES.BEDROCK) { // Deep
+                    if (roll < 0.05) this.inventory.push({ char: 'D', name: 'Diamantine', color: 'T', type: 'legendary' });
                 }
             }
         }

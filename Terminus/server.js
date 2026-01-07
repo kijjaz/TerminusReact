@@ -40,6 +40,7 @@ app.get('*', (req, res) => {
 });
 
 const players = new Map();
+const worldChanges = new Map();
 const DB_FILE = path.join(__dirname, 'users.json');
 
 let userDb = {};
@@ -88,7 +89,14 @@ io.on('connection', (socket) => {
             id: socket.id
         });
 
-        socket.emit('init', { id: socket.id, players: Array.from(players.values()) });
+        // Send Initial State
+        const changesList = Array.from(worldChanges.values());
+        socket.emit('init', {
+            id: socket.id,
+            players: Array.from(players.values()),
+            worldChanges: changesList
+        });
+
         broadcastOnlineList();
         console.log(`User logged in: ${name} (${socket.id})`);
         saveDb();
@@ -112,6 +120,45 @@ io.on('connection', (socket) => {
             // Periodically save
             if (Math.random() > 0.95) saveDb();
         }
+    });
+
+    // --- World Modification & Economy ---
+    // key: "level:x,y" => { x, y, level, char, color, originalChar, originalColor }
+    // We only store *changes*.
+
+    socket.on('mine_request', (data) => {
+        const p = players.get(socket.id);
+        if (!p) return;
+
+        // Vlaidate distance (Anti-cheat/Sanity)
+        const dx = data.x - p.x;
+        const dy = data.y - p.y;
+        if (dx * dx + dy * dy > 100) return; // Too far
+
+        const key = `${data.level}:${data.x},${data.y}`;
+
+        // 1. Record Change (Hole)
+        const change = {
+            x: data.x, y: data.y, level: data.level,
+            char: ' ', color: 'w' // Void/Air
+        };
+        worldChanges.set(key, change);
+
+        // 2. Broadcast
+        io.emit('tile_update', change);
+
+        // 3. Respawn Timer (3 Minutes / 180s)
+        // For testing, let's do 60s
+        setTimeout(() => {
+            if (worldChanges.has(key)) {
+                worldChanges.delete(key);
+                io.emit('tile_restore', { x: data.x, y: data.y, level: data.level });
+            }
+        }, 60000);
+    });
+
+    socket.on('place_request', (data) => {
+        // Later: Logic for placing Mese Lamps
     });
 
     socket.on('update_inventory', (inv) => {

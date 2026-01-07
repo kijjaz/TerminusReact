@@ -402,4 +402,34 @@ export class World {
             cy += (y2 > cy) ? 1 : -1;
         }
     }
+
+    regenerateTile(x, y, id) {
+        const lv = this.levels[id];
+        // Re-run generation logic for this single coordinate
+        // This is an approximation since original gen was iterative/stateful for some things
+        // But for "Terrain" it works well enough.
+
+        const biome = this.getBiome(x, y);
+        // Simple Hash for "Randomness" based on coordinate to keep it stable-ish
+        const pseudoRandom = Math.abs(Math.sin(x * 12.9898 + y * 78.233) * 43758.5453) % 1;
+        const n = pseudoRandom;
+
+        if (id === 'fungal_caverns') {
+            if (biome === 'FUNGAL_JUNGLE') {
+                if (n > 0.96) this.setTile(x, y, TILE_TYPES.TREE, 'o', id);
+                else if (n > 0.92) this.setTile(x, y, TILE_TYPES.MUSHROOM, 'p', id);
+                else if (n > 0.85) this.setTile(x, y, TILE_TYPES.GRASS, 'g', id);
+                else this.setTile(x, y, TILE_TYPES.DIRT, 'D', id);
+            } else if (biome === 'SPORE_WASTES') {
+                if (n > 0.98) this.setTile(x, y, TILE_TYPES.MOUNTAIN, 's', id);
+                else if (n > 0.90) this.setTile(x, y, TILE_TYPES.RUBBLE, 's', id);
+                else this.setTile(x, y, TILE_TYPES.DIRT, 'u', id);
+            } else {
+                if (n > 0.99) this.setTile(x, y, TILE_TYPES.STONE, 's', id);
+                else if (n > 0.95) this.setTile(x, y, TILE_TYPES.MUSHROOM, 'o', id);
+                else this.setTile(x, y, TILE_TYPES.DIRT, 'D', id);
+            }
+        }
+        // Future: Handle other levels
+    }
 }
