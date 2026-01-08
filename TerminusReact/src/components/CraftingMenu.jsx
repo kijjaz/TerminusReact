@@ -21,7 +21,14 @@ const RECIPES = [
         char: 'T', color: 'y',
         desc: 'Tier 3: Mines Diamantine',
         cost: { 'Mese Crystal': 3, 'Iron Ore': 2 },
-        result: { name: 'Mese Pickaxe', type: 'tool', stats: { miningPower: 4 } }
+        result: { name: 'Mese Pickaxe', type: 'tool', stats: { miningPower: 4, attack: 3 } }
+    },
+    {
+        name: 'Iron Sword',
+        char: '|', color: 's',
+        desc: 'Attack: 6',
+        cost: { 'Iron Ore': 4, 'Wood': 2 },
+        result: { name: 'Iron Sword', type: 'tool', stats: { attack: 6, miningPower: 1 } }
     },
     {
         name: 'Iron Armor',

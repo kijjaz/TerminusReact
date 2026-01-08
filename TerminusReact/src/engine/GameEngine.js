@@ -3,6 +3,7 @@ import { World } from './World';
 import { Player } from './Player';
 import { Renderer } from './Renderer';
 import { SoundSystem } from './SoundSystem';
+import { Monster } from './Monster';
 
 export class GameEngine {
     constructor() {
@@ -140,6 +141,11 @@ export class GameEngine {
         // 3. Emit Login
         this.socket.emit('login', { name });
 
+        // 3.5 Initialize Monsters
+        if (this.world.level.mobs) {
+            this.world.level.mobs = this.world.level.mobs.map(m => new Monster(m.x, m.y, m));
+        }
+
         // 4. Update UI State & Start Loop
         this.updateState({
             joined: true,
@@ -171,6 +177,26 @@ export class GameEngine {
 
         // 1. Update Physics (pass remotePlayers for collision)
         const moved = this.player.update(this.remotePlayers);
+
+        // 1.5 Update Monsters
+        if (this.world.level && this.world.level.mobs) {
+            this.world.level.mobs.forEach(mob => {
+                if (mob.update) {
+                    mob.update(dt, this.player, this.world);
+                    // Simple Attack Check
+                    if (mob.state === 'attack' && mob.timeSinceLastMove === 0) {
+                        // Attack!
+                        const dmg = Math.max(0, mob.attack - (this.player.equipment.armor?.stats?.defense || 0));
+                        this.player.hp -= dmg;
+                        this.sound.play('CLINK', 1.0, 0.5); // Hit sound
+                        this.updateState({
+                            chatMessages: [...this.state.chatMessages.slice(-49),
+                            { user: 'System', text: `${mob.name} hits for ${dmg} dmg!`, color: '#f55' }]
+                        });
+                    }
+                }
+            });
+        }
 
         // 2. Render (pass remotePlayers for drawing)
         this.renderer.renderWorld(this.world, this.player, this.remotePlayers, now / 1000, { type: 'none' });

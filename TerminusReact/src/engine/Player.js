@@ -57,6 +57,38 @@ export class Player {
         const dy = worldY - this.y;
 
         if (Math.sqrt(dx * dx + dy * dy) < 5) {
+            // Check for Monster Hit first
+            if (this.world.level && this.world.level.mobs) {
+                const mob = this.world.level.mobs.find(m => Math.floor(m.x) === worldX && Math.floor(m.y) === worldY);
+                if (mob) {
+                    // Attack Monster
+                    const weapon = this.equipment.rightHand;
+                    const damage = (weapon && weapon.stats ? weapon.stats.attack : 1); // Fist = 1
+
+                    if (mob.takeDamage) {
+                        mob.takeDamage(damage);
+                        if (sound) sound.play('CLINK', 1.0, 0.8); // Combat hit
+                        if (engine) engine.updateState({
+                            chatMessages: [...engine.state.chatMessages.slice(-49),
+                            { user: 'System', text: `You hit ${mob.name} for ${damage}!`, color: '#ff0' }]
+                        });
+
+                        // Death Logic
+                        if (mob.hp <= 0) {
+                            // Kill
+                            const idx = this.world.level.mobs.indexOf(mob);
+                            if (idx > -1) this.world.level.mobs.splice(idx, 1);
+                            if (engine) engine.updateState({
+                                chatMessages: [...engine.state.chatMessages.slice(-49),
+                                { user: 'System', text: `You killed ${mob.name}!`, color: '#f00' }]
+                            });
+                            // Loot?
+                        }
+                    }
+                    return; // Stood action used
+                }
+            }
+
             const tile = this.world.getTile(worldX, worldY);
             if (tile && tile.char !== ' ') {
                 // Tier Check
