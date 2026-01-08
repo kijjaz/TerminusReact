@@ -349,8 +349,8 @@ export class Renderer {
 
                 // Radial Gradient for specific blob
                 const g = this.ctx.createRadialGradient(px, py, 0, px, py, pr);
-                // Tuned to 10% (0.10) per user request (very subtle)
-                g.addColorStop(0, `rgba(${fogColor}, 0.10)`); // Slightly legible center
+                // Tuned to 5% (0.05) to ensure it is barely visible
+                g.addColorStop(0, `rgba(${fogColor}, 0.05)`); // Slightly legible center
                 g.addColorStop(1, `rgba(${fogColor}, 0.0)`);   // Edge transparent
 
                 this.ctx.fillStyle = g;
