@@ -319,8 +319,8 @@ export class Renderer {
         });
 
         // 3. Moving Fog (Soft Cloud Particles)
-        // Disabled by user request ("too distracting")
-        if (false && (atmosphere.type === 'fog' || atmosphere.type === 'spooky')) {
+        // Enabled @ 10% opacity (User request)
+        if (atmosphere.type === 'fog' || atmosphere.type === 'spooky') {
             const windSpeed = 2.0; // Tiles per second
             const offset = time * windSpeed;
 
@@ -349,8 +349,9 @@ export class Renderer {
 
                 // Radial Gradient for specific blob
                 const g = this.ctx.createRadialGradient(px, py, 0, px, py, pr);
-                g.addColorStop(0, `rgba(${fogColor}, 0.15)`); // Slightly legible center
-                g.addColorStop(1, `rgba(${fogColor}, 0)`);    // Edge transparent
+                // Tuned to 10% (0.10) per user request (very subtle)
+                g.addColorStop(0, `rgba(${fogColor}, 0.10)`); // Slightly legible center
+                g.addColorStop(1, `rgba(${fogColor}, 0.0)`);   // Edge transparent
 
                 this.ctx.fillStyle = g;
                 this.ctx.fillRect(px - pr, py - pr, pr * 2, pr * 2);
