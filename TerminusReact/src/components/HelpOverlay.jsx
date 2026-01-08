@@ -2,7 +2,9 @@ import React, { useContext } from 'react';
 import { GameContext } from '../context/GameContext';
 
 const HelpOverlay = () => {
-    const { toggleHelp } = useContext(GameContext);
+    const { gameState, toggleHelp } = useContext(GameContext);
+
+    if (!gameState.showHelp) return null;
 
     return (
         <div style={{
