@@ -324,16 +324,16 @@ export class Renderer {
             const offset = time * windSpeed;
 
             this.ctx.save();
-            // Use 'screen' for white fog (adds light), 'source-over' for dark/spooky
-            this.ctx.globalCompositeOperation = atmosphere.type === 'spooky' ? 'source-over' : 'screen';
+            // Use 'source-over' for a subtle overlay.
+            // 'screen' mode with white fog was washing out the black void.
+            this.ctx.globalCompositeOperation = 'source-over';
 
-            const fogColor = atmosphere.type === 'spooky' ? '42, 0, 42' : '200, 200, 200'; // RGB tuples
-            const particles = 15;
+            // Darker, subtle fog (Blue-Grey) instead of bright white
+            const fogColor = atmosphere.type === 'spooky' ? '42, 0, 42' : '40, 50, 60';
+            const particles = 12;
 
             for (let i = 0; i < particles; i++) {
                 // Pseudo-random precise positions
-                // Use large primes to scatter them
-                // X moves continuously Left-to-Right
                 const rawX = (i * 123.45 + offset) % (this.cols + 40) - 20;
                 const y = (i * 678.91) % (this.rows + 20) - 10;
 
@@ -347,7 +347,7 @@ export class Renderer {
 
                 // Radial Gradient for specific blob
                 const g = this.ctx.createRadialGradient(px, py, 0, px, py, pr);
-                g.addColorStop(0, `rgba(${fogColor}, 0.08)`); // Center opacity
+                g.addColorStop(0, `rgba(${fogColor}, 0.15)`); // Slightly legible center
                 g.addColorStop(1, `rgba(${fogColor}, 0)`);    // Edge transparent
 
                 this.ctx.fillStyle = g;
