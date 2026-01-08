@@ -319,9 +319,11 @@ export class Renderer {
         });
 
         // 3. Moving Fog (Soft Cloud Particles)
-        if (atmosphere.type === 'fog' || atmosphere.type === 'spooky') {
+        // Disabled by user request ("too distracting")
+        if (false && (atmosphere.type === 'fog' || atmosphere.type === 'spooky')) {
             const windSpeed = 2.0; // Tiles per second
             const offset = time * windSpeed;
+
 
             this.ctx.save();
             // Use 'source-over' for a subtle overlay.
