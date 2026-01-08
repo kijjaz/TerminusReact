@@ -42,7 +42,167 @@ export class GameEngine {
         return () => this.listeners.delete(callback);
     }
 
-    // ... (init, login, start, stop, loop stay same)
+    updateState(updates) {
+        this.state = { ...this.state, ...updates };
+        this.listeners.forEach(cb => cb(this.state));
+    }
+
+    // --- Initialization & Network ---
+    init() {
+        if (this.socket) return; // Already init
+
+        console.log("[Engine] Initializing...");
+        // Use relative URL in production (served by backend), localhost:8081 in dev
+        const url = import.meta.env.PROD ? '/' : 'http://localhost:8081';
+        this.socket = io(url);
+
+        this.socket.on('connect', () => {
+            console.log("[Engine] Socket Connected");
+            this.updateState({ connected: true });
+        });
+
+        this.socket.on('init', (data) => {
+            console.log("[Engine] Init Payload:", data);
+            if (data.id) {
+                this.player.id = data.id;
+            }
+            if (data.players) {
+                data.players.forEach(p => {
+                    if (p.id !== this.player.id) {
+                        this.remotePlayers.set(p.id, p);
+                    }
+                });
+            }
+            if (data.worldChanges) {
+                data.worldChanges.forEach(c => {
+                    this.world.setTile(c.x, c.y, c.char, c.color, c.level);
+                });
+            }
+        });
+
+        this.socket.on('tile_update', (change) => {
+            this.world.setTile(change.x, change.y, change.char, change.color, change.level);
+        });
+
+        this.socket.on('tile_restore', (data) => {
+            this.world.regenerateTile(data.x, data.y, data.level);
+        });
+
+        this.socket.on('chat_message', (msg) => {
+            this.updateState({
+                chatMessages: [...this.state.chatMessages.slice(-49), msg]
+            });
+        });
+
+        this.socket.on('online_list', (list) => {
+            this.updateState({ onlineList: list });
+        });
+
+        this.socket.on('player_update', (p) => {
+            if (p.id === this.player.id) return; // Ignore self
+            this.remotePlayers.set(p.id, p);
+        });
+
+        this.socket.on('player_disconnect', (id) => {
+            this.remotePlayers.delete(id);
+        });
+    }
+
+    sendMineRequest(x, y, level) {
+        if (this.socket) {
+            this.socket.emit('mine_request', { x, y, level });
+        } else {
+            // Offline fallback?
+            this.world.setTile(x, y, ' ', 'w', level);
+        }
+    }
+
+    login(name) {
+        if (!this.socket) return;
+
+        console.log(`[Engine] Login: ${name}`);
+        this.player.name = name;
+        this.player.level = 'fungal_caverns';
+
+        // Debug Spawn Tile
+        const tile = this.world.getTile(Math.floor(this.player.x), Math.floor(this.player.y));
+        console.log(`[Engine] Spawn Tile at (${Math.floor(this.player.x)},${Math.floor(this.player.y)}): '${tile.char}'`);
+
+        // 1. Force FOV Update Immediately
+        this.player.updateFOV();
+
+        // 2. Determine initial render
+        if (this.renderer.ctx) {
+            this.renderer.resize();
+            this.renderer.renderWorld(this.world, this.player, this.remotePlayers);
+        }
+
+        // 3. Emit Login
+        this.socket.emit('login', { name });
+
+        // 4. Update UI State & Start Loop
+        this.updateState({
+            joined: true,
+            player: { ...this.state.player, name }
+        });
+
+        this.start();
+    }
+
+    // --- Game Loop ---
+    start() {
+        if (this.rafId) return;
+        console.log("[Engine] Starting Loop");
+        this.lastTime = performance.now();
+        this.loop();
+    }
+
+    stop() {
+        if (this.rafId) {
+            cancelAnimationFrame(this.rafId);
+            this.rafId = null;
+        }
+    }
+
+    loop() {
+        const now = performance.now();
+        const dt = (now - this.lastTime) / 1000;
+        this.lastTime = now;
+
+        // 1. Update Physics (pass remotePlayers for collision)
+        const moved = this.player.update(this.remotePlayers);
+
+        // 2. Render (pass remotePlayers for drawing)
+        this.renderer.renderWorld(this.world, this.player, this.remotePlayers, now / 1000, { type: 'none' });
+
+        // 3. Network Sync
+        if (moved && this.socket) {
+            this.socket.emit('move', {
+                x: this.player.x, y: this.player.y,
+                level: this.player.level,
+                char: this.player.char,
+                inventory: this.player.inventory
+            });
+        }
+
+        // 4. Sync UI State
+        if (this.player.gold !== this.state.player.gold ||
+            this.player.hp !== this.state.player.hp ||
+            this.player.inventory.length !== this.state.player.inventory.length) {
+
+            this.updateState({
+                player: {
+                    ...this.state.player,
+                    gold: this.player.gold,
+                    hp: this.player.hp,
+                    inventory: [...this.player.inventory],
+                    equipment: { ...this.player.equipment }
+                }
+            });
+        }
+
+        this.rafId = requestAnimationFrame(() => this.loop());
+    }
 
     craft(recipe) {
         // Double check cost
