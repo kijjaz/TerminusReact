@@ -323,6 +323,8 @@ export class GameEngine {
                 this.updateState({ showCrafting: !this.state.showCrafting, showInventory: false });
             } else if (data.toLowerCase() === 'i') {
                 this.updateState({ showInventory: !this.state.showInventory, showCrafting: false });
+            } else if (data === '>' || data === '.' || data === '<' || data === ',') {
+                this.player.handleKeyDown(data);
             } else {
                 this.player.handleKeyDown(data);
             }

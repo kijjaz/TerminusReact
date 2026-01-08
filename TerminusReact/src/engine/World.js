@@ -301,6 +301,8 @@ export class World {
         const keepR = 10;
         this.drawBuilding(cx - keepR, cy - keepR, keepR * 2, keepR * 2, TILE_TYPES.STONE, 'w', TILE_TYPES.PLANKS, 'w', id);
         this.setSign(cx, cy + keepR + 1, "Citadel Keep", id);
+        // Stair Up to Roof/Upper Floor
+        this.setTile(cx - 2, cy, TILE_TYPES.STAIR_UP, 'b', id);
         this.setTile(cx, cy, TILE_TYPES.GROMP, 'G', id); // The King/Boss
 
         // --- 2. Town Grid (South of Citadel) ---
