@@ -200,7 +200,11 @@ export class Renderer {
             }
         }
 
-        // 3. Remote Players & Indicators
+
+        // 3. Atmosphere (Fog/Lighting) - Render BEHIND players/mobs
+        this.drawAtmosphere(world, player, camX, camY, time, atmosphere);
+
+        // 4. Remote Players & Indicators
         for (const [id, p] of remotePlayers) {
             if (p.level !== world.currentLevel) continue;
 
@@ -250,7 +254,7 @@ export class Renderer {
         this.drawChar(player.x - camX, player.y - camY, player.char, player.color);
 
         // 6. Atmosphere
-        this.drawAtmosphere(world, player, camX, camY, time, atmosphere);
+
     }
 
     drawAtmosphere(world, player, camX, camY, time, atmosphere) {
