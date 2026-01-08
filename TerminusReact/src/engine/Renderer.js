@@ -334,16 +334,19 @@ export class Renderer {
 
             // Let's use a pattern of large low-alpha rects moving across screen
             const fogColor = atmosphere.type === 'spooky' ? '#2a002a' : '#DDDDDD';
-            const baseAlpha = 0.05;
+            // Reduced alpha from 0.05 -> 0.02
+            const baseAlpha = 0.02;
 
-            for (let i = 0; i < 10; i++) {
+            // Reduced count from 10 -> 6
+            for (let i = 0; i < 6; i++) {
                 const fx = ((Math.sin(i * 13 + time * 0.1) * 20 + time * 2 + i * 50) % (this.cols + 20)) - 10;
                 const fy = ((Math.cos(i * 7 + time * 0.15) * 15 + i * 30) % (this.rows + 20)) - 10;
                 const fw = 15 + Math.sin(i) * 5;
                 const fh = 10 + Math.cos(i) * 5;
 
                 this.ctx.fillStyle = fogColor;
-                this.ctx.globalAlpha = baseAlpha + Math.sin(time + i) * 0.02;
+                // Reduced variance
+                this.ctx.globalAlpha = baseAlpha + Math.sin(time + i) * 0.01;
                 this.ctx.fillRect(fx * this.charWidth, fy * this.charHeight, fw * this.charWidth, fh * this.charHeight);
             }
 
