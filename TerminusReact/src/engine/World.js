@@ -100,7 +100,8 @@ export class World {
             width: w,
             height: h,
             mobs: [],
-            signs: {}
+            signs: {},
+            atmosphere: { type: 'fog' } // Default atmosphere
         };
     }
 

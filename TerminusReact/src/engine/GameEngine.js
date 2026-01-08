@@ -231,7 +231,7 @@ export class GameEngine {
         }
 
         // 2. Render (pass remotePlayers for drawing)
-        this.renderer.renderWorld(this.world, this.player, this.remotePlayers, now / 1000, { type: 'none' });
+        this.renderer.renderWorld(this.world, this.player, this.remotePlayers, now / 1000, this.world.level.atmosphere);
 
         // 3. Network Sync
         if (moved && this.socket) {
