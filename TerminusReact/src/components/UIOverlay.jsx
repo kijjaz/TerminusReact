@@ -121,6 +121,17 @@ const UIOverlay = () => {
         <>
             <Chat />
             <Inventory />
+            <div style={{
+                position: 'absolute',
+                bottom: '5px',
+                right: '5px',
+                color: 'rgba(255, 255, 255, 0.3)',
+                fontSize: '10px',
+                fontFamily: 'monospace',
+                pointerEvents: 'none'
+            }}>
+                v0.6 (ANSI Fog Layer)
+            </div>
         </>
     );
 };
