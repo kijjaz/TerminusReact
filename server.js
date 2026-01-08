@@ -1,11 +1,20 @@
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const path = require('path');
-const fs = require('fs');
+import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+// Shared Engine Imports
+import { World } from './TerminusReact/src/engine/World.js';
+import { Monster } from './TerminusReact/src/engine/Monster.js';
+
+// ESM Fix for __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
-const server = http.createServer(app);
+const server = createServer(app);
 const io = new Server(server, {
     cors: {
         origin: "*", // Allow Vite dev server
@@ -14,6 +23,7 @@ const io = new Server(server, {
 });
 
 const LOG_FILE = path.join(__dirname, 'chat_logs.txt');
+const DB_FILE = path.join(__dirname, 'users.json');
 
 function logChat(user, text) {
     const entry = `[${new Date().toISOString()}] ${user}: ${text}\n`;
@@ -22,15 +32,10 @@ function logChat(user, text) {
 
 const PORT = process.env.PORT || 8081;
 
-// Serve static files from 'public' directory (React Build)
+// Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-// SPA Fallback: Send index.html for any other requests
 app.get('*', (req, res) => {
-    // Check if request is API-like?? No, socket.io handles its own path.
-    // Ensure we don't block socket.io (it intercepts before or via upgrade).
-    // Actually socket.io is attached to 'server', not 'app' routes, so this catch-all is fine for HTTP.
-    // But we should verify file exists to avoid loop?
     const index = path.join(__dirname, 'public', 'index.html');
     if (fs.existsSync(index)) {
         res.sendFile(index);
@@ -39,10 +44,22 @@ app.get('*', (req, res) => {
     }
 });
 
+// --- Server Game State ---
 const players = new Map();
-const DB_FILE = path.join(__dirname, 'users.json');
-
 let userDb = {};
+
+// Initialize World
+console.log("Initializing Server World...");
+const world = new World();
+// Convert mobs to smart entities immediately
+if (world.levels['fungal_caverns'] && world.levels['fungal_caverns'].mobs) {
+    world.levels['fungal_caverns'].mobs = world.levels['fungal_caverns'].mobs.map(m => new Monster(m.x, m.y, m));
+    console.log(`Server World Ready. Mobs: ${world.levels['fungal_caverns'].mobs.length}`);
+} else {
+    console.log("Server World Initialized (No Mobs Found/Empty).");
+}
+
+// Load DB
 if (fs.existsSync(DB_FILE)) {
     try {
         userDb = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
@@ -63,54 +80,112 @@ function broadcastOnlineList() {
     io.emit('online_list', list);
 }
 
+// --- Game Loop (AI & Physics) ---
+const TICK_RATE = 100; // 100ms = 10 updates/sec
+setInterval(() => {
+    // Update Mobs
+    // We only simulate active levels? For now just 'fungal_caverns'
+    if (!world.levels['fungal_caverns']) return;
+
+    const mobs = world.levels['fungal_caverns'].mobs;
+    if (!mobs) return;
+
+    const activePlayers = Array.from(players.values()).filter(p => p.level === 'fungal_caverns');
+
+    let mobUpdates = [];
+
+    // Let's iterate mobs
+    mobs.forEach((mob, idx) => {
+        if (!mob.hp || mob.hp <= 0) return; // Dead
+
+        // Search for nearest player
+        let target = null;
+        let minDist = 999;
+
+        activePlayers.forEach(p => {
+            const dist = Math.sqrt((p.x - mob.x) ** 2 + (p.y - mob.y) ** 2);
+            if (dist < minDist) {
+                minDist = dist;
+                target = p;
+            }
+        });
+
+        // If target found within range, pass it to mob.update
+        // We pass 0.1s as dt
+        if (target && minDist < 20) {
+            mob.update(0.1, target, world);
+        } else {
+            mob.update(0.1, { x: -999, y: -999 }, world);
+        }
+
+        // Push State
+        mobUpdates.push({
+            id: idx, // Use array index as ID for now
+            x: mob.x, y: mob.y,
+            char: mob.char, color: mob.color,
+            hp: mob.hp, maxHp: mob.maxHp
+        });
+    });
+
+    io.emit('mob_update', { level: 'fungal_caverns', mobs: mobUpdates });
+
+}, TICK_RATE);
+
+
 io.on('connection', (socket) => {
     console.log('Player connected:', socket.id);
 
     socket.on('login', (data) => {
         const name = data.name || 'Stranger';
-
-        // Restore or Create
         if (!userDb[name]) {
             userDb[name] = {
-                name: name,
-                x: 200, y: 200,
-                level: 'town',
-                char: '@',
-                inventory: [],
-                friends: [],
-                bankGold: 0
+                name: name, x: 200, y: 200, level: 'fungal_caverns',
+                char: '@', inventory: [], friends: [], bankGold: 0,
+                hp: 100
             };
         }
-
         const userData = userDb[name];
-        players.set(socket.id, {
-            ...userData,
-            id: socket.id
-        });
+        players.set(socket.id, { ...userData, id: socket.id });
 
         socket.emit('init', { id: socket.id, players: Array.from(players.values()) });
         broadcastOnlineList();
-        console.log(`User logged in: ${name} (${socket.id})`);
         saveDb();
     });
 
     socket.on('move', (pos) => {
         const p = players.get(socket.id);
         if (p) {
-            p.x = pos.x;
-            p.y = pos.y;
-            p.level = pos.level || 'town';
-            p.char = pos.char || '@';
-            p.inventory = pos.inventory || p.inventory;
-
-            // Sync to DB
+            p.x = pos.x; p.y = pos.y; p.level = pos.level;
+            p.char = pos.char; p.inventory = pos.inventory;
             userDb[p.name] = { ...p };
-            delete userDb[p.name].id; // Don't persist temporary socket id
-
+            delete userDb[p.name].id;
             socket.broadcast.emit('player_update', p);
+        }
+    });
 
-            // Periodically save
-            if (Math.random() > 0.95) saveDb();
+    // Combat Request
+    socket.on('attack_request', (data) => {
+        const p = players.get(socket.id);
+        if (!p) return;
+
+        const mobs = world.levels[p.level].mobs;
+        const mob = mobs.find(m => Math.floor(m.x) === data.x && Math.floor(m.y) === data.y);
+
+        if (mob) {
+            let damage = 1;
+            if (data.damage) damage = Math.min(20, data.damage); // Clamp
+
+            mob.takeDamage(damage);
+            io.emit('chat_message', { user: 'System', text: `${p.name} hit ${mob.name} for ${damage}!`, color: '#ff0' });
+
+            if (mob.hp <= 0) {
+                const idx = mobs.indexOf(mob);
+                if (idx > -1) mobs.splice(idx, 1);
+                io.emit('chat_message', { user: 'System', text: `${mob.name} was killed by ${p.name}!`, color: '#f00' });
+                io.emit('sound_effect', { name: 'KILL', x: mob.x, y: mob.y });
+            } else {
+                io.emit('sound_effect', { name: 'CLINK', x: mob.x, y: mob.y });
+            }
         }
     });
 
@@ -123,100 +198,13 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('update_bank', (data) => {
-        const p = players.get(socket.id);
-        if (p) {
-            p.bankGold = data.bankGold;
-            userDb[p.name].bankGold = p.bankGold;
-            saveDb();
-        }
-    });
-
-    socket.on('add_friend', (friendName) => {
-        const p = players.get(socket.id);
-        if (p && userDb[friendName]) {
-            if (!p.friends) p.friends = [];
-            if (!p.friends.includes(friendName)) {
-                p.friends.push(friendName);
-                userDb[p.name].friends = p.friends;
-                saveDb();
-                socket.emit('chat_message', { user: 'System', text: `${friendName} added to your friends.` });
-                broadcastOnlineList();
-            }
-        }
-    });
-
-    socket.on('chat_message', (text) => {
+    socket.on('chat_message', (textOrMsg) => {
         const p = players.get(socket.id);
         if (!p) return;
 
-        let user = p.name;
-
-        // Command Parsing
-        if (text.startsWith('/')) {
-            const parts = text.split(' ');
-            const cmd = parts[0].toLowerCase();
-            const arg = parts.slice(1).join(' ');
-
-            if (cmd === '/join' || cmd === '/room') {
-                const roomName = arg || 'meeting';
-                p.chatChannel = roomName;
-                socket.emit('chat_message', { user: 'System', text: `Joined room: [${roomName}]` });
-                return;
-            }
-            if (cmd === '/global' || cmd === '/world') {
-                p.chatChannel = 'global';
-                socket.emit('chat_message', { user: 'System', text: `Switched to World Chat.` });
-                return;
-            }
-            if (cmd === '/me') {
-                // Emote
-                const msg = { user: user, text: `* ${arg} *`, type: 'emote', channel: p.chatChannel || 'global' };
-                logChat(user, msg.text);
-                io.emit('chat_message', msg); // Emotes are global for now? Or scoped? Let's scope them.
-                // Actually fall through to scoped logic below for consistency if I extract it.
-                // Let's just handle commands here and standard flows below.
-            }
-        }
-
-        // Standard Message Logic
-        const channel = p.chatChannel || 'global';
-        const msgObj = { user, text, channel };
-        logChat(user, text);
-
-        if (channel === 'global') {
-            io.emit('chat_message', msgObj);
-        } else {
-            // Room Broadcast
-            Array.from(players.values()).forEach(target => {
-                const targetSocket = io.sockets.sockets.get(target.id);
-                if (targetSocket && (target.chatChannel === channel)) {
-                    targetSocket.emit('chat_message', msgObj);
-                }
-            });
-            // Also send to sender if not mapped above (it is mapped above)
-        }
-    });
-
-    // Social Commands
-    socket.on('summon_request', (targetId) => {
-        const p = players.get(socket.id);
-        if (p) {
-            io.to(targetId).emit('summon_received', { fromId: socket.id, fromName: p.name });
-        }
-    });
-
-    socket.on('summon_accept', (fromId) => {
-        const target = players.get(socket.id);
-        const caller = players.get(fromId);
-        if (target && caller) {
-            // Teleport caller to target
-            caller.x = target.x;
-            caller.y = target.y + 1;
-            caller.level = target.level;
-            io.emit('player_update', caller);
-            io.to(fromId).emit('teleported', { x: caller.x, y: caller.y, level: caller.level });
-        }
+        let text = typeof textOrMsg === 'string' ? textOrMsg : textOrMsg.text;
+        const msg = { user: p.name, text, channel: 'global' };
+        io.emit('chat_message', msg);
     });
 
     socket.on('disconnect', () => {
@@ -229,5 +217,5 @@ io.on('connection', (socket) => {
 });
 
 server.listen(PORT, () => {
-    console.log(`TERMINUS server running on http://localhost:${PORT}`);
+    console.log(`TERMINUS Server (ESM) running on http://localhost:${PORT}`);
 });

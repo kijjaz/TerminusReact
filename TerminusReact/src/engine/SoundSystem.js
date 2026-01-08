@@ -139,19 +139,50 @@ export class SoundSystem {
         };
     }
 
-    play(freq, dur = 0.1, duty = 0.5, vol = 0.1, pan = 0) {
+    play(freq, dur = 0.1, duty = 0.5, vol = 0.1, pan = 0, type = 'sawtooth', slide = 0) {
         if (!this.initialized) return;
         if (this.ctx.state === 'suspended') this.ctx.resume();
 
-        const osc = this.createPWMOsc(freq, duty);
+        let osc;
+        if (type === 'noise') {
+            osc = this.ctx.createBufferSource();
+            osc.buffer = this.noiseSource ? this.noiseSource.buffer : null;
+            // Fallback if no noise buffer?
+            if (!osc.buffer) return;
+            osc.loop = true;
+        } else {
+            osc = this.createPWMOsc(freq, duty); // Currently only supports PWM/Saw
+            // TODO: Support other types directly if needed, but PWM covers 'sawtooth'/'square'ish
+        }
+
         const env = this.ctx.createGain();
         const panner = this.ctx.createStereoPanner();
         panner.pan.value = pan;
 
         const now = this.ctx.currentTime;
         env.gain.setValueAtTime(0, now);
-        env.gain.linearRampToValueAtTime(vol, now + 0.002);
+        env.gain.linearRampToValueAtTime(vol, now + 0.005);
         env.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+        // Slide logic for PWM
+        if (type !== 'noise' && slide !== 0 && osc.setFrequency) {
+            // osc here is the object returned by createPWMOsc which wraps 2 oscillators
+            // It doesn't expose frequency param easily.
+            // Let's assume standard osc for slide for now, or update CreatePWMOsc?
+            // createPWMOsc returns an object with start/stop.
+            // Let's just ignore slide for PWM for this iteration unless I upgrade createPWMOsc
+        }
+
+        // Simple OSC for non-PWM types to support slide
+        if (type === 'square' || type === 'sawtooth') {
+            // Override osc with standard nodes for slide support
+            osc = this.ctx.createOscillator();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, now);
+            if (slide !== 0) {
+                osc.frequency.linearRampToValueAtTime(freq + slide, now + dur);
+            }
+        }
 
         osc.connect(env);
         env.connect(panner);
@@ -159,6 +190,21 @@ export class SoundSystem {
 
         osc.start(now);
         osc.stop(now + dur);
+    }
+
+    playSFX(name, volMod = 1.0, pitchMod = 1.0, pan = 0) {
+        if (!this.sfx || !this.sfx[name]) return;
+        const s = this.sfx[name];
+
+        this.play(
+            (s.freq || 440) * pitchMod,
+            s.duration,
+            0.5,
+            (s.vol || 0.3) * volMod,
+            pan,
+            s.type,
+            s.slide || 0
+        );
     }
 
     triggerMove(velocity = 1.0) {
@@ -332,25 +378,34 @@ export class SoundSystem {
         // For syntactic correctness, they are placed as properties of a new object
         // that is not assigned, which is likely not the intended final use,
         // but adheres to the instruction's placement and syntactic correctness.
-        ({
+        this.sfx = {
             DIG: {
                 type: 'noise',
                 duration: 0.1,
-                filter: { type: 'lowpass', freq: 600, q: 1 }
+                filter: { type: 'lowpass', freq: 600, q: 1 },
+                vol: 0.5
             },
             CLINK: {
                 type: 'square',
                 duration: 0.1,
                 freq: 800,
-                slide: 1200, // Pitch shift up
+                slide: 1200,
                 vol: 0.5
             },
             STEP: {
                 type: 'noise',
                 duration: 0.05,
-                filter: { type: 'bandpass', freq: 200, q: 5 }
+                filter: { type: 'bandpass', freq: 200, q: 5 },
+                vol: 0.2
+            },
+            KILL: {
+                type: 'sawtooth',
+                duration: 0.4,
+                freq: 150,
+                slide: -100,
+                vol: 0.6
             }
-        });
+        };
         this.noiseSource = this.ctx.createBufferSource();
         this.noiseSource.buffer = noiseBuffer;
         this.noiseSource.loop = true;

@@ -89,6 +89,38 @@ export class GameEngine {
             this.world.regenerateTile(data.x, data.y, data.level);
         });
 
+        this.socket.on('mob_update', (data) => {
+            if (this.world.levels[data.level]) {
+                // Simplified: Replace mobs array logic?
+                // Server sends list of active mobs.
+                // We need to map them back to visual entities.
+                // data.mobs = [{id, x, y, char, color...}]
+                // For rendering, we can just replace the array or update inplace.
+                // Since this is view-only, replacing is fine.
+                this.world.levels[data.level].mobs = data.mobs;
+            }
+        });
+
+        this.socket.on('sound_effect', (data) => {
+            // Spatial Audio Logic
+            if (this.sound) {
+                // Calculate distance
+                const dx = data.x - this.player.x;
+                const dy = data.y - this.player.y;
+                // Simple distance vol
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const vol = Math.max(0, 1.0 - (dist / 20)); // Fade out over 20 tiles
+
+                // Pan: -1 (left) to 1 (right)
+                // If dx is negative (left), pan left.
+                const pan = Math.max(-1, Math.min(1, dx / 10));
+
+                if (vol > 0.05) {
+                    this.sound.playSFX(data.name, vol, 1.0, pan);
+                }
+            }
+        });
+
         this.socket.on('chat_message', (msg) => {
             this.updateState({
                 chatMessages: [...this.state.chatMessages.slice(-49), msg]

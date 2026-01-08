@@ -265,11 +265,45 @@ export class Player {
     }
 
     updateFOV() {
-        const radius = 10;
-        for (let j = -radius; j <= radius; j++) {
-            for (let i = -radius; i <= radius; i++) {
-                if (i * i + j * j <= radius * radius) {
-                    this.world.setExplored(this.x + i, this.y + j, true);
+        // Reset current visibility
+        this.visible = new Set(); // Store "x,y" strings
+        const radius = 12;
+        const originX = Math.floor(this.x);
+        const originY = Math.floor(this.y);
+
+        this.visible.add(`${originX},${originY}`);
+        this.world.setExplored(originX, originY, true);
+
+        // Simple Raycasting (360 degrees, step by 0.1 radians? approx)
+        // Optimization: Cast to perimeter of square
+        const steps = 360;
+        const stepAngle = (Math.PI * 2) / steps;
+
+        for (let i = 0; i < steps; i++) {
+            const angle = i * stepAngle;
+            const cos = Math.cos(angle);
+            const sin = Math.sin(angle);
+
+            let x = originX + 0.5; // Center of tile
+            let y = originY + 0.5;
+
+            for (let r = 0; r < radius; r++) {
+                x += cos;
+                y += sin;
+                const tx = Math.floor(x);
+                const ty = Math.floor(y);
+
+                if (tx < 0 || ty < 0 || tx >= this.world.levels[this.level].width || ty >= this.world.levels[this.level].height) break;
+
+                const key = `${tx},${ty}`;
+                this.visible.add(key);
+                this.world.setExplored(tx, ty, true);
+
+                const tile = this.world.getTile(tx, ty);
+                // Blocks light?
+                if (tile.char === '#' || tile.char === 'X' || tile.char === 'T' || tile.char === 'W') {
+                    // Wall blocks light
+                    break;
                 }
             }
         }

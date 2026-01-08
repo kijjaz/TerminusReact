@@ -176,10 +176,26 @@ export class Renderer {
         const z = player.z;
         for (let y = startY; y < endY; y++) {
             for (let x = startX; x < endX; x++) {
-                if (!world.isExplored(x, y, world.currentLevel, z)) continue;
+                // Determine Visibility
+                const key = `${x},${y}`;
+                const isVisible = player.visible ? player.visible.has(key) : world.isExplored(x, y, world.currentLevel, z); // Fallback if no visible set
+                const isExplored = world.isExplored(x, y, world.currentLevel, z);
+
+                if (!isExplored) continue; // Black void
+
                 const tile = world.getTile(x, y, world.currentLevel, z);
                 if (tile.char !== ' ') {
-                    this.drawChar(x - camX, y - camY, tile.char, tile.color);
+                    if (isVisible) {
+                        this.drawChar(x - camX, y - camY, tile.char, tile.color);
+                    } else {
+                        // Memory / Fog of War
+                        // Draw darker/desaturated
+                        // Using 'D' (Dirt Dark/Brown) or 's' (Gray) as universal memory color?
+                        // Or just render with overlay?
+                        // Draw char with generic grey to signify "Remembered but not active"
+                        this.drawChar(x - camX, y - camY, tile.char, 's');
+                        this.drawOverlay(x - camX, y - camY, 'black', 0.6); // Darken further
+                    }
                 }
             }
         }
@@ -215,11 +231,20 @@ export class Renderer {
         }
 
         // 4. Mobs
-        world.level.mobs.forEach(m => {
-            if (world.isExplored(m.x, m.y)) {
-                this.drawChar(m.x - camX, m.y - camY, m.char, m.color);
-            }
-        });
+        // Use server mobs list from world.level.mobs if available?
+        // GameEngine syncs it to world.level.mobs
+        if (world.level && world.level.mobs) {
+            world.level.mobs.forEach(m => {
+                const key = `${Math.floor(m.x)},${Math.floor(m.y)}`;
+                // Only draw if strictly visible to player (Line of Sight)
+                if (player.visible && player.visible.has(key)) {
+                    this.drawChar(m.x - camX, m.y - camY, m.char, m.color);
+                } else if (!player.visible && world.isExplored(m.x, m.y)) {
+                    // Fallback for legacy mode checks
+                    // this.drawChar(m.x - camX, m.y - camY, m.char, m.color);
+                }
+            });
+        }
 
         // 5. Local Player
         this.drawChar(player.x - camX, player.y - camY, player.char, player.color);
@@ -236,39 +261,93 @@ export class Renderer {
         const endX = Math.min(level.width, camX + this.cols);
         const endY = Math.min(level.height, camY + this.rows);
 
-        // Light Sources (Torches/Lamps)
+        // Pre-calculate Light Map (Simple additive)
+        // Optimization: Only calculate for visible screen + margin
+        // But for 'surrounding area' we just iterate screen.
+
+        // 1. Static Sources
+        const lightSources = [];
+
         for (let y = startY; y < endY; y++) {
             for (let x = startX; x < endX; x++) {
                 const tile = world.getTile(x, y, world.currentLevel, player.z);
-                if (tile.char === 'i' || tile.char === 'o') {
-                    const flicker = tile.char === 'i' ? (1.0 + Math.sin(time * 12) * 0.1 * Math.random()) : 1.0;
-                    const radius = tile.char === 'i' ? 4 * flicker : 6;
-                    const color = tile.char === 'i' ? 'rgba(255,200,100,0.3)' : 'rgba(100,200,255,0.2)';
+                if (tile.char === 'i') lightSources.push({ x, y, r: 8, c: [255, 200, 100] }); // Torch
+                if (tile.char === 'o') lightSources.push({ x, y, r: 10, c: [100, 200, 255] }); // Mushroom Lamp
+            }
+        }
 
-                    for (let ly = -radius; ly <= radius; ly++) {
-                        for (let lx = -radius; lx <= radius; lx++) {
-                            const dSq = lx * lx + ly * ly;
-                            if (dSq < radius * radius) {
-                                const ctxX = (x + lx) - camX;
-                                const ctxY = (y + ly) - camY;
-                                if (ctxX >= 0 && ctxX < this.cols && ctxY >= 0 && ctxY < this.rows) {
-                                    const strength = (1.0 - Math.sqrt(dSq) / radius) * 0.4;
-                                    this.drawOverlay(ctxX, ctxY, ' ', strength, color); // Use color directly
-                                }
-                            }
+        // 2. Dynamic Sources (Player)
+        // Check Player Equipment
+        const rightHand = player.equipment && player.equipment.rightHand;
+        if (rightHand && (rightHand.name.includes('Torch') || rightHand.name.includes('Lamp') || rightHand.name.includes('Pickaxe'))) {
+            // Pickaxes have "spark" light? Or just Torch? 
+            // User said: "When user equip tools with dynamic lighting". Let's assume Pickaxes emit faint light, Torches strong.
+            let radius = 4;
+            let color = [200, 200, 200];
+
+            if (rightHand.name.includes('Torch')) { radius = 12; color = [255, 180, 50]; }
+            else if (rightHand.name.includes('Mese')) { radius = 14; color = [255, 255, 100]; }
+            else if (rightHand.name.includes('Iron')) { radius = 6; color = [200, 200, 255]; }
+
+            lightSources.push({ x: player.x, y: player.y, r: radius, c: color });
+        }
+
+        // Draw Lights (Soft Glow)
+        lightSources.forEach(src => {
+            const flicker = 1.0 + Math.sin(time * 10 + src.x) * 0.05 * Math.random();
+            const radius = src.r * flicker;
+
+            for (let ly = -radius; ly <= radius; ly++) {
+                for (let lx = -radius; lx <= radius; lx++) {
+                    const dSq = lx * lx + ly * ly;
+                    if (dSq < radius * radius) {
+                        const tx = Math.floor(src.x + lx);
+                        const ty = Math.floor(src.y + ly);
+                        const ctxX = tx - camX;
+                        const ctxY = ty - camY;
+
+                        if (ctxX >= 0 && ctxX < this.cols && ctxY >= 0 && ctxY < this.rows) {
+                            // Inverse Square Falloff approx
+                            const falloff = 1.0 - (Math.sqrt(dSq) / radius);
+                            const strength = falloff * falloff * 0.5; // smoother
+                            const colStr = `rgba(${src.c[0]},${src.c[1]},${src.c[2]},${strength.toFixed(3)})`;
+                            this.drawOverlay(ctxX, ctxY, ' ', 1, colStr); // Use calculated RGBA directly
                         }
                     }
                 }
             }
-        }
+        });
 
-        // Global Effects
-        // Global Effects
-        if (atmosphere.type === 'fog') {
-            this.drawGlobalFilter('W', 0.03); // Reduced from 0.1
-        } else if (atmosphere.type === 'spooky') {
-            this.drawGlobalFilter('p', 0.1);
-            if (Math.sin(time * 5) > 0.8) this.drawGlobalFilter('black', 0.05);
+        // 3. Moving Fog (Perlin-ish / Sinusoidal Drifting)
+        if (atmosphere.type === 'fog' || atmosphere.type === 'spooky') {
+            // Animate offset
+            const driftX = Math.sin(time * 0.2) * 20;
+            const driftY = time * 0.5; // Constant flow vertically
+
+            this.ctx.save();
+            this.ctx.globalCompositeOperation = 'source-over'; // Just draw on top
+
+            // Draw "Cloud" patches
+            // Simple noise simulation using large varying rectangles for performance
+            // Or just a global filter with sine pulsing?
+            // User wants "moves softly and slowly".
+
+            // Let's use a pattern of large low-alpha rects moving across screen
+            const fogColor = atmosphere.type === 'spooky' ? '#2a002a' : '#DDDDDD';
+            const baseAlpha = 0.05;
+
+            for (let i = 0; i < 10; i++) {
+                const fx = ((Math.sin(i * 13 + time * 0.1) * 20 + time * 2 + i * 50) % (this.cols + 20)) - 10;
+                const fy = ((Math.cos(i * 7 + time * 0.15) * 15 + i * 30) % (this.rows + 20)) - 10;
+                const fw = 15 + Math.sin(i) * 5;
+                const fh = 10 + Math.cos(i) * 5;
+
+                this.ctx.fillStyle = fogColor;
+                this.ctx.globalAlpha = baseAlpha + Math.sin(time + i) * 0.02;
+                this.ctx.fillRect(fx * this.charWidth, fy * this.charHeight, fw * this.charWidth, fh * this.charHeight);
+            }
+
+            this.ctx.restore();
         }
     }
 }
