@@ -6,6 +6,7 @@ import UIOverlay from './components/UIOverlay';
 import HelpOverlay from './components/HelpOverlay';
 import { MobileControls } from './components/MobileControls';
 import CraftingMenu from './components/CraftingMenu';
+import InventoryScreen from './components/InventoryScreen';
 
 const MainLayout = () => {
   const { gameState } = useGameContext();
@@ -21,6 +22,7 @@ const MainLayout = () => {
           <UIOverlay />
           <HelpOverlay />
           <CraftingMenu />
+          <InventoryScreen />
           <MobileControls />
         </>
       )}

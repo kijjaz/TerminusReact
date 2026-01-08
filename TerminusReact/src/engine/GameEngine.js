@@ -262,7 +262,9 @@ export class GameEngine {
             } else if (data === '-' || data === '_') {
                 this.renderer.setZoom(-0.1);
             } else if (data.toLowerCase() === 'c') {
-                this.updateState({ showCrafting: !this.state.showCrafting });
+                this.updateState({ showCrafting: !this.state.showCrafting, showInventory: false });
+            } else if (data.toLowerCase() === 'i') {
+                this.updateState({ showInventory: !this.state.showInventory, showCrafting: false });
             } else {
                 this.player.handleKeyDown(data);
             }

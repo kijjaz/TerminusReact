@@ -94,6 +94,7 @@ const Inventory = () => {
     return (
         <div style={{
             position: 'absolute', top: 10, right: 10, width: '200px',
+            maxHeight: '50vh', overflowY: 'auto',
             backgroundColor: 'rgba(0, 0, 0, 0.8)', border: '1px solid #555',
             padding: '5px', color: '#fff', fontFamily: 'monospace', zIndex: 10
         }}>
