@@ -164,6 +164,34 @@ export class Player {
             this.keys.has('a') || this.keys.has('arrowleft') ||
             this.keys.has('d') || this.keys.has('arrowright');
 
+        // Stair Interaction
+        if (this.keys.has('>') || this.keys.has('.')) {
+            // Descend
+            const tile = this.world.getTile(Math.floor(this.x), Math.floor(this.y), this.level, this.z);
+            if (tile.char === TILE_TYPES.STAIR_DOWN) {
+                // Check if target floor exists? Generator usually ensures this.
+                // Assuming Logic: If z=-1 (Dungeon), go deeper? Or if z=0 (Surface), go to z=-1?
+                // Standard: Stair Down goes Z-1.
+                this.z -= 1;
+                this.keys.delete('>'); // One-shot
+                this.keys.delete('.');
+                console.log("Descended to Z:", this.z);
+                this.updateFOV();
+                // Play sound
+            }
+        }
+        if (this.keys.has('<') || this.keys.has(',')) {
+            // Ascend
+            const tile = this.world.getTile(Math.floor(this.x), Math.floor(this.y), this.level, this.z);
+            if (tile.char === TILE_TYPES.STAIR_UP) {
+                this.z += 1;
+                this.keys.delete('<');
+                this.keys.delete(',');
+                console.log("Ascended to Z:", this.z);
+                this.updateFOV();
+            }
+        }
+
         // Running Acceleration Mechanic
         if (isMoving) {
             this.runTime = Math.min(100, this.runTime + 1);
@@ -229,7 +257,7 @@ export class Player {
             TILE_TYPES.STAIR_UP,
             TILE_TYPES.STAIR_DOWN,
             TILE_TYPES.OPEN_DOOR,
-            TILE_TYPES.WOOD,
+            TILE_TYPES.PLANKS, // Walkable Floor
             TILE_TYPES.ICE,
             TILE_TYPES.GOLD,
             TILE_TYPES.POTION,

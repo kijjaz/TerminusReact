@@ -11,7 +11,8 @@ export const TILE_TYPES = {
     DIRT: '.',      // FLOOR
     STONE: '#',     // WALL
     BEDROCK: 'X',   // PERM_WALL
-    WOOD: 'W',      // GRANITE/WOOD
+    WOOD: 'W',      // WALL (Impassable)
+    PLANKS: '=',    // FLOOR (Walkable)
     LEAVES: '%',    // BRICK? Leaves
     DOOR: '+',
     OPEN_DOOR: "'",
@@ -270,73 +271,136 @@ export class World {
         const cx = Math.floor(lv.width / 2);
         const cy = Math.floor(lv.height / 2);
 
-        // Colony Plaza
-        for (let y = cy - 20; y < cy + 20; y++) {
-            for (let x = cx - 20; x < cx + 20; x++) {
-                if (Math.sqrt((x - cx) ** 2 + (y - cy) ** 2) < 20) {
-                    this.setTile(x, y, TILE_TYPES.WOOD, 'u', id); // Wooden Plaza
+        // --- 1. The Citadel (Castle) ---
+        // Stone Walls 60x60
+        const castleR = 30;
+        for (let y = cy - castleR; y <= cy + castleR; y++) {
+            for (let x = cx - castleR; x <= cx + castleR; x++) {
+                // Moat
+                const dist = Math.max(Math.abs(x - cx), Math.abs(y - cy));
+                if (dist === castleR + 2 || dist === castleR + 3) {
+                    this.setTile(x, y, TILE_TYPES.WATER, 'b', id);
+                }
+                // Walls
+                if (dist === castleR) {
+                    // Gate
+                    if (y === cy + castleR && x >= cx - 2 && x <= cx + 2) {
+                        this.setTile(x, y, TILE_TYPES.PLANKS, 'u', id); // Drawbridge
+                    } else {
+                        this.setTile(x, y, TILE_TYPES.STONE, 'w', id);
+                    }
+                }
+                // Courtyard
+                if (dist < castleR) {
+                    this.setTile(x, y, TILE_TYPES.GRASS, 'g', id);
                 }
             }
         }
 
-        this.setSign(cx + 2, cy + 2, "Spore Colony - Safe Haven", id);
-        this.setTile(cx, cy, TILE_TYPES.FOUNTAIN, 'b', id);
+        // The Keep (Central Building)
+        const keepR = 10;
+        this.drawBuilding(cx - keepR, cy - keepR, keepR * 2, keepR * 2, TILE_TYPES.STONE, 'w', TILE_TYPES.PLANKS, 'w', id);
+        this.setSign(cx, cy + keepR + 1, "Citadel Keep", id);
+        this.setTile(cx, cy, TILE_TYPES.GROMP, 'G', id); // The King/Boss
 
-        // Trade District
-        this.drawShop(cx - 30, cy - 10, 'Supply', '1', 'U', id); // Mining Supplies
+        // --- 2. Town Grid (South of Citadel) ---
+        const startY = cy + castleR + 10;
+        const streetW = 4;
 
-        // The Elder Tree (Citadel equivalent)
-        this.drawElderTree(cx, cy - 60, id);
-
-        // Organic Mushroom Homes
-        for (let i = 0; i < 25; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const dist = 35 + Math.random() * 60;
-            const hx = Math.floor(cx + Math.cos(angle) * dist);
-            const hy = Math.floor(cy + Math.sin(angle) * dist);
-            this.drawMushroomHut(hx, hy, id);
+        // Main Street
+        for (let y = startY; y < startY + 60; y++) {
+            for (let x = cx - 2; x <= cx + 2; x++) {
+                this.setTile(x, y, TILE_TYPES.DIRT, 'u', id); // Paved Road
+            }
         }
 
-        // Entrance to Deep Mycelium
-        this.setTile(cx, cy + 80, TILE_TYPES.STAIR_DOWN, 'r', id);
-        this.drawRect(cx - 2, cy + 78, 5, 5, TILE_TYPES.STONE, 's', id);
-        this.setSign(cx + 3, cy + 80, "Danger: Deep Mycelium Layer", id);
+        // Housing Blocks
+        const blockW = 12;
+        const blockH = 10;
+
+        // Left Side
+        for (let i = 0; i < 3; i++) {
+            const hx = cx - 15 - blockW;
+            const hy = startY + i * (blockH + 4);
+            this.drawHouse(hx, hy, blockW, blockH, id);
+        }
+
+        // Right Side
+        for (let i = 0; i < 3; i++) {
+            const hx = cx + 15;
+            const hy = startY + i * (blockH + 4);
+            this.drawHouse(hx, hy, blockW, blockH, id);
+        }
+
+        // --- 3. Farms (West of Town) ---
+        const farmX = cx - 60;
+        const farmY = startY;
+
+        for (let i = 0; i < 2; i++) {
+            const fy = farmY + i * 25;
+            this.drawFarm(farmX, fy, 20, 20, id);
+        }
+
+        // --- 4. Entrance to Deep Mycelium ---
+        // Moved to side of Keep
+        this.setTile(cx + 8, cy - 8, TILE_TYPES.STAIR_DOWN, 'r', id);
+        this.setSign(cx + 9, cy - 8, "Dungeon Entrance", id);
     }
 
-    drawElderTree(x, y, id) {
-        // Giant central mushroom/tree structure
-        const radius = 15;
-        for (let dy = -radius; dy <= radius; dy++) {
-            for (let dx = -radius; dx <= radius; dx++) {
-                if (dx * dx + dy * dy < radius * radius) {
-                    this.setTile(x + dx, y + dy, TILE_TYPES.WOOD, 'U', id);
+    drawHouse(x, y, w, h, id) {
+        // Wood Walls, Planks Floor
+        this.drawBuilding(x, y, w, h, TILE_TYPES.WOOD, 'u', TILE_TYPES.PLANKS, 'u', id);
+        // Door
+        this.setTile(x + Math.floor(w / 2), y + h - 1, TILE_TYPES.DOOR, 'u', id);
+
+        // Roof (z=1) - Simple fill for now
+        this.drawRect(x, y, w, h, TILE_TYPES.WOOD, 'r', id, 1); // Red Roof
+    }
+
+    drawFarm(x, y, w, h, id) {
+        // Fences (Wood Walls for now, maybe specific Fence type later)
+        this.drawRect(x, y, w, h, TILE_TYPES.WOOD, 'y', id);
+        // Gate
+        this.setTile(x + Math.floor(w / 2), y + h - 1, TILE_TYPES.DOOR, 'u', id);
+
+        // Crops
+        for (let fy = y + 1; fy < y + h - 1; fy++) {
+            for (let fx = x + 1; fx < x + w - 1; fx++) {
+                this.setTile(fx, fy, TILE_TYPES.DIRT, 'D', id);
+                if (Math.random() > 0.6) {
+                    this.setTile(fx, fy, TILE_TYPES.MUSHROOM, 'p', id);
                 }
             }
         }
-        this.setTile(x, y, TILE_TYPES.GROMP, 'G', id); // The Elder
     }
 
-    drawMushroomHut(x, y, id) {
-        this.setTile(x, y, TILE_TYPES.MUSHROOM, 'o', id);
-        this.setTile(x, y + 1, TILE_TYPES.DOOR, 'u', id);
+    drawBuilding(x, y, w, h, wallChar, wallColor, floorChar, floorColor, id) {
+        // Walls
+        this.drawRect(x, y, w, h, wallChar, wallColor, id);
+
+        // Floor
+        for (let fy = y + 1; fy < y + h - 1; fy++) {
+            for (let fx = x + 1; fx < x + w - 1; fx++) {
+                this.setTile(fx, fy, floorChar, floorColor, id);
+            }
+        }
     }
 
-    drawShop(x, y, name, symbol, color, id) {
-        this.drawRect(x - 3, y - 3, 7, 7, TILE_TYPES.WOOD, 'u', id);
-        this.setTile(x, y, symbol, color, id);
-        this.setTile(x, y + 3, TILE_TYPES.DOOR, 'u', id);
-    }
-
-    drawRect(x, y, w, h, char, color, id) {
+    drawRect(x, y, w, h, char, color, id, z = 0) {
         for (let i = 0; i < w; i++) {
-            this.setTile(x + i, y, char, color, id);
-            this.setTile(x + i, y + h - 1, char, color, id);
+            this.setTile(x + i, y, char, color, id, z);
+            this.setTile(x + i, y + h - 1, char, color, id, z);
         }
         for (let i = 0; i < h; i++) {
-            this.setTile(x, y + i, char, color, id);
-            this.setTile(x + w - 1, y + i, char, color, id);
+            this.setTile(x, y + i, char, color, id, z);
+            this.setTile(x + w - 1, y + i, char, color, id, z);
         }
     }
+
+    // Legacy helpers removed or refactored above
+    drawElderTree(x, y, id) { }
+    drawMushroomHut(x, y, id) { }
+    drawShop(x, y, name, symbol, color, id) { }
 
     generateDungeon(id) {
         const lv = this.levels[id];

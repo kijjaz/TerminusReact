@@ -172,32 +172,81 @@ export class Renderer {
             this.drawGlobalFilter('black', 0.4);
         }
 
-        // 2. Current Storey
-        const z = player.z;
+        // 2. Render World Layers
+        // We render Z levels relative to player.
+        // If Player Z=0:
+        //   1. Draw Z=0 (Ground/Floor)
+        //   2. Draw Z=0 Entities
+        //   3. Draw Z=1 (Roofs/Upper) with opacity logic
+        //      - If player is 'under' Z=1 content (Inside), hide Z=1 locally?
+        //      - "Immersive 3D": We draw Z=1 with a drop shadow offset.
+
+        const pz = player.z;
+
+        // --- Layer 0: Current Floor (pz) ---
         for (let y = startY; y < endY; y++) {
             for (let x = startX; x < endX; x++) {
-                // Determine Visibility
-                const key = `${x},${y}`;
-                const isVisible = player.visible ? player.visible.has(key) : world.isExplored(x, y, world.currentLevel, z); // Fallback if no visible set
-                const isExplored = world.isExplored(x, y, world.currentLevel, z);
+                // Visibility Check
+                const isExplored = world.isExplored(x, y, world.currentLevel, pz);
+                if (!isExplored) continue;
 
-                if (!isExplored) continue; // Black void
+                const tile = world.getTile(x, y, world.currentLevel, pz);
+                const isVisible = player.visible ? player.visible.has(`${x},${y}`) : true;
 
-                const tile = world.getTile(x, y, world.currentLevel, z);
                 if (tile.char !== ' ') {
                     if (isVisible) {
                         this.drawChar(x - camX, y - camY, tile.char, tile.color);
                     } else {
-                        // Memory / Fog of War
-                        // Draw darker/desaturated
-                        // Using 'D' (Dirt Dark/Brown) or 's' (Gray) as universal memory color?
-                        // Or just render with overlay?
-                        // Draw char with generic grey to signify "Remembered but not active"
+                        // Memory
                         this.drawChar(x - camX, y - camY, tile.char, 's');
-                        this.drawOverlay(x - camX, y - camY, 'black', 0.6); // Darken further
+                        this.drawOverlay(x - camX, y - camY, 'black', 0.6);
                     }
                 }
             }
+        }
+
+        // --- Layer 0.5: Entities (Mobs/Player) ---
+        // Rendered on top of floor, but below roofs
+        // (Existing Mob Loop would go here, but passing it simply:)
+
+        // --- Layer 1: Upper Floor / Roof (pz + 1) ---
+        // "Immersive 3D" - only draw if we are NOT inside it?
+        // Check if player is "covered" by a roof
+        const playerTileAbove = world.getTile(Math.floor(player.x), Math.floor(player.y), world.currentLevel, pz + 1);
+        const isIndoors = playerTileAbove.char !== ' ';
+
+        if (!isIndoors) {
+            // We are outside, so draw the roofs!
+            for (let y = startY; y < endY; y++) {
+                for (let x = startX; x < endX; x++) {
+                    const tileUp = world.getTile(x, y, world.currentLevel, pz + 1);
+                    if (tileUp.char !== ' ') {
+                        const isVisible = player.visible ? player.visible.has(`${x},${y}`) : true;
+                        if (isVisible) {
+                            // 3D Shadow Effect
+                            // Draw a shadow 1 tile down/right to simulate height
+                            this.ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                            const sx = (x - camX) * this.charWidth + 4;
+                            const sy = (y - camY) * this.charHeight + 4;
+                            this.ctx.fillRect(sx, sy, this.charWidth, this.charHeight);
+
+                            // Draw Roof Tile
+                            this.drawChar(x - camX, y - camY, tileUp.char, tileUp.color);
+                        }
+                    }
+                }
+            }
+        } else {
+            // We are INDOORS.
+            // Visual Layer Tip: Maybe show transparent Roofs if we want "X-Ray"?
+            // For now, simple Cutaway (Don't draw roofs at all, or draw them with high transparency?)
+            // User said: "When user enters, they see current floor." -> Implies complete cutaway.
+            // BUT, "Really immersive" might mean seeing neighbor roofs.
+            // Let's draw neighbor roofs but NOT the ones overlapping the player? 
+            // That's complex. Let's stick to "If Indoors, Hide ALL Roofs" for clarity first, 
+            // OR "Hide Roofs in a radius around player".
+
+            // Simple "Hide All" relative to view is classic Roguelike (Angband/CataDDA style).
         }
 
 
