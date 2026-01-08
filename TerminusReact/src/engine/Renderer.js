@@ -306,39 +306,44 @@ export class Renderer {
         });
         this.ctx.restore();
 
-        // 4. ANSI FOG LAYER (Replaces Pixel Fog)
+        // 4. Moving Fog (Soft Cloud Particles)
+        // Reverted to Soft Gradients (v0.7) per user request ("No need to use ░")
         if (atmosphere.type === 'fog' || atmosphere.type === 'spooky') {
-            const windSpeed = 2.0;
+            const windSpeed = 2.0; // Tiles per second
             const offset = time * windSpeed;
 
             this.ctx.save();
-            this.ctx.font = `${this.charHeight}px monospace`; // Ensure font matches grid
+            // Use 'source-over' for a subtle overlay.
+            // 'screen' mode with white fog was washing out the black void.
+            this.ctx.globalCompositeOperation = 'source-over';
 
-            // Iterate visible grid
-            for (let y = startY; y < endY; y++) {
-                for (let x = startX; x < endX; x++) {
-                    const tile = world.getTile(x, y, world.currentLevel, player.z);
-                    // Only draw fog if visible/explored
-                    if (tile.char === ' ' || world.isExplored(x, y, world.currentLevel, player.z)) {
-                        // Simple pseudo-noise based on coordinates + time
-                        const noise = Math.sin((x + offset) * 0.1) + Math.cos((y + offset * 0.5) * 0.1);
+            // Darker, subtle fog (Blue-Grey) instead of bright white
+            const fogColor = atmosphere.type === 'spooky' ? '42, 0, 42' : '40, 50, 60';
+            const particles = 12;
 
-                        // Threshold for "Cloud"
-                        if (noise > 0.5) {
-                            // Draw ANSI Shade Character
-                            // '░' (Light), '▒' (Medium), '▓' (Dark)
-                            // Use Light Shade for subtle mist
-                            // Color: Dark Slate Blue
-                            const alpha = 0.15;
-                            const fogRef = '░';
+            for (let i = 0; i < particles; i++) {
+                // Pseudo-random precise positions
+                const rawX = (i * 123.45 + offset) % (this.cols + 40) - 20;
+                const y = (i * 678.91) % (this.rows + 20) - 10;
 
-                            this.drawChar(x - camX, y - camY, fogRef, 't'); // 't' is Cyan (for mist)
-                            // Or use manual overlay if we want transparency
-                            // this.drawOverlay(x - camX, y - camY, 't', 0.1);
-                        }
-                    }
-                }
+                // Varying sizes
+                const r = 15 + Math.sin(i * 32.1) * 10;
+
+                // Draw Soft Gradient
+                const px = rawX * this.charWidth;
+                const py = y * this.charHeight;
+                const pr = r * this.charWidth; // Radius in pixels
+
+                // Radial Gradient for specific blob
+                const g = this.ctx.createRadialGradient(px, py, 0, px, py, pr);
+                // Tuned to 8% (0.08) - "Faint white thing"
+                g.addColorStop(0, `rgba(${fogColor}, 0.08)`); // Slightly legible center
+                g.addColorStop(1, `rgba(${fogColor}, 0.0)`);   // Edge transparent
+
+                this.ctx.fillStyle = g;
+                this.ctx.fillRect(px - pr, py - pr, pr * 2, pr * 2);
             }
+
             this.ctx.restore();
         }
     }

@@ -130,7 +130,7 @@ const UIOverlay = () => {
                 fontFamily: 'monospace',
                 pointerEvents: 'none'
             }}>
-                v0.6 (ANSI Fog Layer)
+                v0.7 (Soft Gradient Fog)
             </div>
         </>
     );
