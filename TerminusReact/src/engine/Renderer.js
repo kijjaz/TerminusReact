@@ -318,36 +318,40 @@ export class Renderer {
             }
         });
 
-        // 3. Moving Fog (Perlin-ish / Sinusoidal Drifting)
+        // 3. Moving Fog (Soft Cloud Particles)
         if (atmosphere.type === 'fog' || atmosphere.type === 'spooky') {
-            // Animate offset
-            const driftX = Math.sin(time * 0.2) * 20;
-            const driftY = time * 0.5; // Constant flow vertically
+            const windSpeed = 2.0; // Tiles per second
+            const offset = time * windSpeed;
 
             this.ctx.save();
-            this.ctx.globalCompositeOperation = 'source-over'; // Just draw on top
+            // Use 'screen' for white fog (adds light), 'source-over' for dark/spooky
+            this.ctx.globalCompositeOperation = atmosphere.type === 'spooky' ? 'source-over' : 'screen';
 
-            // Draw "Cloud" patches
-            // Simple noise simulation using large varying rectangles for performance
-            // Or just a global filter with sine pulsing?
-            // User wants "moves softly and slowly".
+            const fogColor = atmosphere.type === 'spooky' ? '42, 0, 42' : '200, 200, 200'; // RGB tuples
+            const particles = 15;
 
-            // Let's use a pattern of large low-alpha rects moving across screen
-            const fogColor = atmosphere.type === 'spooky' ? '#2a002a' : '#DDDDDD';
-            // Reduced alpha from 0.05 -> 0.02
-            const baseAlpha = 0.02;
+            for (let i = 0; i < particles; i++) {
+                // Pseudo-random precise positions
+                // Use large primes to scatter them
+                // X moves continuously Left-to-Right
+                const rawX = (i * 123.45 + offset) % (this.cols + 40) - 20;
+                const y = (i * 678.91) % (this.rows + 20) - 10;
 
-            // Reduced count from 10 -> 6
-            for (let i = 0; i < 6; i++) {
-                const fx = ((Math.sin(i * 13 + time * 0.1) * 20 + time * 2 + i * 50) % (this.cols + 20)) - 10;
-                const fy = ((Math.cos(i * 7 + time * 0.15) * 15 + i * 30) % (this.rows + 20)) - 10;
-                const fw = 15 + Math.sin(i) * 5;
-                const fh = 10 + Math.cos(i) * 5;
+                // Varying sizes
+                const r = 15 + Math.sin(i * 32.1) * 10;
 
-                this.ctx.fillStyle = fogColor;
-                // Reduced variance
-                this.ctx.globalAlpha = baseAlpha + Math.sin(time + i) * 0.01;
-                this.ctx.fillRect(fx * this.charWidth, fy * this.charHeight, fw * this.charWidth, fh * this.charHeight);
+                // Draw Soft Gradient
+                const px = rawX * this.charWidth;
+                const py = y * this.charHeight;
+                const pr = r * this.charWidth; // Radius in pixels
+
+                // Radial Gradient for specific blob
+                const g = this.ctx.createRadialGradient(px, py, 0, px, py, pr);
+                g.addColorStop(0, `rgba(${fogColor}, 0.08)`); // Center opacity
+                g.addColorStop(1, `rgba(${fogColor}, 0)`);    // Edge transparent
+
+                this.ctx.fillStyle = g;
+                this.ctx.fillRect(px - pr, py - pr, pr * 2, pr * 2);
             }
 
             this.ctx.restore();
