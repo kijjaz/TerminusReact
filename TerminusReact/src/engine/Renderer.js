@@ -73,7 +73,7 @@ export class Renderer {
         this.canvas.width = winW;
         this.canvas.height = winH;
 
-        this.ctx.font = `${this.charHeight}px 'VT323', monospace`;
+        this.ctx.font = `bold ${this.charHeight}px 'Noto Sans Mono', monospace`;
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
         this.ctx.imageSmoothingEnabled = false;

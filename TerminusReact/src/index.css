@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Mono:wght@400;700&display=swap');
 
 body {
   margin: 0;
@@ -6,7 +6,7 @@ body {
   background-color: #050505;
   /* Minerio VOID */
   color: #fff;
-  font-family: 'VT323', monospace;
+  font-family: 'Noto Sans Mono', monospace;
   overflow: hidden;
   -webkit-font-smoothing: none;
 }
